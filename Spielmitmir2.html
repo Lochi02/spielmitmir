@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Rahmen-Spiel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+
+    #game-container {
+      position: relative;
+      width: 90vw;
+      max-width: 600px;
+      aspect-ratio: 1 / 1;
+      background-image: url('https://s1.directupload.eu/images/250721/fuqdusgq.png');
+      background-size: cover;
+      background-position: center;
+      border: 2px solid #fff;
+      touch-action: manipulation;
+      overflow: hidden;
+    }
+
+    #moving-frame,
+    #target {
+      position: absolute;
+      width: 46%;
+      height: 80%;
+      top: -4%;
+      pointer-events: none;
+    }
+
+    #moving-frame img,
+    #target img {
+      width: 135%;
+      height: 135%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    #target img {
+      filter: brightness(0) saturate(100%) hue-rotate(90deg);
+      opacity: 0.6;
+    }
+
+    #buttons {
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    button {
+      padding: 12px 24px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      background-color: #fff;
+      color: #000;
+      cursor: pointer;
+    }
+
+    #message {
+      color: white;
+      margin-top: 10px;
+      font-size: 20px;
+      text-align: center;
+    }
+
+    #center-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      font-size: 28px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px #000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      z-index: 10;
+    }
+
+    .emoji {
+      position: absolute;
+      font-size: 44px;
+      animation: floatUp 2s ease-out forwards;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    @keyframes floatUp {
+      0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-150px) scale(1.7);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <div id="moving-frame">
+      <img src="https://s1.directupload.eu/images/250721/f6aqhpkf.png" alt="Rahmen">
+    </div>
+    <div id="target" style="left: 17%;">
+      <img src="https://s1.directupload.eu/images/250721/f6aqhpkf.png" alt="Zielrahmen">
+    </div>
+    <div id="center-message"></div>
+  </div>
+
+  <div id="buttons">
+    <button id="stop-button">Stop!</button>
+    <button id="restart-button">Neustart</button>
+  </div>
+  <div id="message"></div>
+
+  <script>
+    const frame = document.getElementById('moving-frame');
+    const target = document.getElementById('target');
+    const stopButton = document.getElementById('stop-button');
+    const restartButton = document.getElementById('restart-button');
+    const message = document.getElementById('message');
+    const centerMessage = document.getElementById('center-message');
+    const container = document.getElementById('game-container');
+
+    let posX = 0;
+    let directionX = 2;
+    let moving = true;
+    let targetHidden = false;
+    let targetTimeout;
+
+    function getTargetX() {
+      const leftPercent = parseFloat(target.style.left) || 0;
+      return container.offsetWidth * (leftPercent / 100);
+    }
+
+    const frameWidth = () => frame.offsetWidth;
+
+    function animate() {
+      if (!moving) return;
+
+      if (!targetHidden) {
+        targetTimeout = setTimeout(() => {
+          target.style.visibility = 'hidden';
+          targetHidden = true;
+        }, 2000);
+      }
+
+      posX += directionX;
+
+      if (posX <= 0 || posX + frameWidth() >= container.offsetWidth) {
+        directionX *= -1;
+      }
+
+      frame.style.left = posX + 'px';
+      requestAnimationFrame(animate);
+    }
+
+    function stopGame() {
+      if (!moving) return;
+      moving = false;
+
+      const targetX = getTargetX();
+      const diffX = Math.abs(posX - targetX);
+      const maxOffset = frameWidth();
+      const accuracy = Math.max(0, Math.round((1 - diffX / maxOffset) * 100));
+
+      centerMessage.textContent = `🎯 Genauigkeit: ${accuracy}%`;
+      centerMessage.style.opacity = 1;
+
+      setTimeout(() => {
+        centerMessage.style.opacity = 0;
+      }, 2000);
+
+      if (diffX < 15) {
+        message.textContent = `🎯 Perfekt getroffen! Genauigkeit: ${accuracy}%`;
+
+        for (let i = 0; i < 25; i++) {
+          const emoji = document.createElement('div');
+          emoji.classList.add('emoji');
+          emoji.textContent = Math.random() > 0.5 ? '❤️' : '💋';
+          emoji.style.left = Math.random() * 90 + '%';
+          emoji.style.top = Math.random() * 90 + '%';
+          emoji.style.fontSize = (Math.random() * 20 + 36) + 'px';
+          container.appendChild(emoji);
+
+          setTimeout(() => emoji.remove(), 2000);
+        }
+
+      } else {
+        message.textContent = `😬 Daneben! Genauigkeit: ${accuracy}% (Abweichung: ${Math.round(diffX)}px)`;
+      }
+    }
+
+    function restartGame() {
+      moving = false;
+      posX = 0;
+      directionX = 2;
+      message.textContent = "";
+      frame.style.left = '0px';
+      clearTimeout(targetTimeout);
+      target.style.visibility = 'visible';
+      targetHidden = false;
+      moving = true;
+      animate();
+    }
+
+    stopButton.addEventListener('click', stopGame);
+    stopButton.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      stopGame();
+    }, { passive: false });
+
+    restartButton.addEventListener('click', restartGame);
+    restartButton.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      restartGame();
+    }, { passive: false });
+
+    frame.style.left = '0px';
+    animate();
+  </script>
+
+</body>
+</html>
